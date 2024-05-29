@@ -1,0 +1,246 @@
+---
+title: "ME705_TRABALHO"
+output: pdf_document
+date: "2024-05-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+fuel <-read_csv("https://open.canada.ca/data/dataset/98f1a129-f628-4ce4-b24d-6f16bf24dd64/resource/edba4afa-dc19-480c-bbe4-57992fc9d0d6/download/my2024-fuel-consumption-ratings.csv")
+```
+
+```{r}
+ifelse(fuel$Transmission %in% c("AV", "AV1" , "AV10" ,"AV6" , "AV7" ,"AV8"), "AV", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("A10",  "A6",   "A8",   "A9", "AM6" , "AM7",  "AM8"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("AS10", "AS5" , "AS6" , "AS7" , "AS8" , "AS9"), "AS", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("M5",   "M6",   "M7"), "M", fuel$Transmission) -> fuel$Transmission
+
+fuel[,-c(1, 2, 3, 4, 9, 10, 12, 14, 15)] -> fuel1
+```
+
+```{r}
+hist(x = fuel1$`CO2 emissions (g/km)`)
+qqnorm(fuel1$`CO2 emissions (g/km)`)
+```
+
+```{r}
+library(lrgs)
+library(fastDummies)
+library(tidyverse)
+```
+
+```{r}
+set.seed(12345)
+dummy_cols(fuel1[,-6], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X
+X <- as.matrix(X)
+y <- as.matrix(fuel1[,6])
+
+#cadeia 1
+
+fit.post.chain1 <- Gibbs.regression(X, y, NULL, Nsamples = 1000, trace='bsmt', fix='xy',intercept = T, B.prior.mean = rep(0,10), B.prior.cov = 100*diag(10), dirichlet = F) ##GIBBS
+
+#cadeia 2
+  
+fit.post.chain2 <- Gibbs.regression(X, y, NULL, Nsamples = 1000, trace='bsmt', fix='xy') ##GIBBS
+
+fit.lm <- lm(y ~ X) ## MV
+summary(fit.lm)
+#fit.lm
+
+```
+
+```{r}
+par(mfrow = c(2,2))
+hist(fit.post.chain1$B[1,1,1:1000])
+hist(fit.post.chain1$B[2,1,1:1000])
+hist(fit.post.chain1$B[3,1,1:1000])
+hist(fit.post.chain1$B[4,1,1:1000])
+hist(fit.post.chain1$B[5,1,1:1000])
+hist(fit.post.chain1$B[6,1,1:1000])
+hist(fit.post.chain1$B[7,1,1:1000])
+hist(fit.post.chain1$B[8,1,1:1000])
+hist(fit.post.chain1$B[9,1,1:1000])
+hist(fit.post.chain1$B[10,1,1:1000])
+```
+
+GIBBS MANUAL 
+
+```{r gibbs sampling}
+library(coda)
+library(MASS)
+library(MCMCpack)
+
+gibbs <- function (M, y, X, beta_0, tau){
+
+sigmas <- betas <- matrix(0,nrow = M,ncol = length(beta_0))
+
+mu_valores <- mu_N <- beta_0
+sigma <- 1/tau
+
+XtX = t(X) %*% X
+beta_hat = solve(XtX, t(X) %*% y)
+XtXi = solve(XtX)
+
+temp   <- 
+temp_2 <- solve(t(X) %*% X) %*% t(X) %*% y  
+tau_N <- temp
+mu_N <- temp_2
+
+for (i in 2:M){
+  betas[i,]<- beta <-  mvrnorm(n=1, beta_hat, sigma * XtXi)
+    
+  part = (y - X %*% beta)
+  
+  sigma = rinvgamma(1, nrow(y)/2, t(part) %*% part * .5 )
+}
+return(as.data.frame(betas))
+}
+
+M <- 10000
+y <- y 
+dummy_cols(fuel1[,-6], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X
+X <- as.matrix(X)
+X <- cbind(rep(1,748),X)
+beta_0 <- rep(0,10)
+tau_0 <- diag(10,10)
+tau <- as.numeric(1/var(y))
+
+thetas <- gibbs(M, y, X, beta_0,tau)
+```
+
+```{r histogramas sem burn-in sem lag}
+hist(thetas[1:10000, 1])
+hist(thetas[1:10000, 2])
+hist(thetas[1:10000, 3])
+hist(thetas[1:10000, 4])
+hist(thetas[1:10000, 5])
+hist(thetas[1:10000, 6])
+hist(thetas[1:10000, 7])
+hist(thetas[1:10000, 8])
+hist(thetas[1:10000, 9])
+hist(thetas[1:10000, 10])
+```
+
+```{r histogramas com burn-in sem lag}
+hist(thetas[5000:10000, 1])
+hist(thetas[5000:10000, 2])
+hist(thetas[5000:10000, 3])
+hist(thetas[5000:10000, 4])
+hist(thetas[5000:10000, 5])
+hist(thetas[5000:10000, 6])
+hist(thetas[5000:10000, 7])
+hist(thetas[5000:10000, 8])
+hist(thetas[5000:10000, 9])
+hist(thetas[5000:10000, 10])
+```
+
+```{r histogramas com burn-in com lag}
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 1])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 2])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 3])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 4])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 5])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 6])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 7])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 8])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 9])
+hist(thetas[seq(from = 5000, to = 10000,by = 100), 10])
+```
+
+```{r lineplots sem burnin sem lag}
+plot(type = "l",thetas[1:10000, 1])
+abline(a = fit.lm$coefficients[1], b = 0,col = "red")
+abline(a = fit.lm$coefficients[1]+1.96*sqrt(diag(vcov(fit.lm)))[1], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[1]-1.96*sqrt(diag(vcov(fit.lm)))[1], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 2])
+abline(a = fit.lm$coefficients[2], b = 0,col = "red")
+abline(a = fit.lm$coefficients[2]+1.96*sqrt(diag(vcov(fit.lm)))[2], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[2]-1.96*sqrt(diag(vcov(fit.lm)))[2], b = 0,col = "blue" )
+plot(type = "l",thetas[1:1000, 3])
+abline(a = fit.lm$coefficients[3], b = 0,col = "red")
+abline(a = fit.lm$coefficients[3]+1.96*sqrt(diag(vcov(fit.lm)))[3], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[3]-1.96*sqrt(diag(vcov(fit.lm)))[3], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 4])
+abline(a = fit.lm$coefficients[4], b = 0,col = "red")
+abline(a = fit.lm$coefficients[4]+1.96*sqrt(diag(vcov(fit.lm)))[4], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[4]-1.96*sqrt(diag(vcov(fit.lm)))[4], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 5])
+abline(a = fit.lm$coefficients[5], b = 0,col = "red")
+abline(a = fit.lm$coefficients[5]+1.96*sqrt(diag(vcov(fit.lm)))[5], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[5]-1.96*sqrt(diag(vcov(fit.lm)))[5], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 6])
+abline(a = fit.lm$coefficients[6], b = 0,col = "red")
+abline(a = fit.lm$coefficients[6]+1.96*sqrt(diag(vcov(fit.lm)))[6], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[6]-1.96*sqrt(diag(vcov(fit.lm)))[6], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 7])
+abline(a = fit.lm$coefficients[7], b = 0,col = "red")
+abline(a = fit.lm$coefficients[7]+1.96*sqrt(diag(vcov(fit.lm)))[7], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[7]-1.96*sqrt(diag(vcov(fit.lm)))[7], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 8])
+abline(a = fit.lm$coefficients[8], b = 0,col = "red")
+abline(a = fit.lm$coefficients[8]+1.96*sqrt(diag(vcov(fit.lm)))[8], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[8]-1.96*sqrt(diag(vcov(fit.lm)))[8], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 9])
+abline(a = fit.lm$coefficients[9], b = 0,col = "red")
+abline(a = fit.lm$coefficients[9]+1.96*sqrt(diag(vcov(fit.lm)))[9], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[9]-1.96*sqrt(diag(vcov(fit.lm)))[9], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 10])
+abline(a = fit.lm$coefficients[10], b = 0,col = "red")
+abline(a = fit.lm$coefficients[10]+1.96*sqrt(diag(vcov(fit.lm)))[10], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[10]-1.96*sqrt(diag(vcov(fit.lm)))[10], b = 0,col = "blue" )
+```
+
+```{rlineplots com burn-in sem lag}
+plot(type="l",thetas[5000:10000, 1])
+plot(type="l",thetas[5000:10000, 2])
+plot(type="l",thetas[5000:10000, 3])
+plot(type="l",thetas[5000:10000, 4])
+plot(type="l",thetas[5000:10000, 5])
+plot(type="l",thetas[5000:10000, 6])
+plot(type="l",thetas[5000:10000, 7])
+plot(type="l",thetas[5000:10000, 8])
+plot(type="l",thetas[5000:10000, 9])
+plot(type="l",thetas[5000:10000, 10])
+```
+
+```{r lineplot com burn-in com lag}
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 1])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 2])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 3])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 4])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 5])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 6])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 7])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 8])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 9])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 10])
+```
+
+```{r}
+apply(thetas[seq(from= 5000,to = 10000,by = 100),], 2, FUN=mean)
+fit.lm$coefficients
+apply(thetas[seq(from= 5000,to = 10000,by = 1),], 2, FUN=var)
+diag(vcov(fit.lm))
+```
+
+
+
+
+https://www.ljwolf.org/teaching/gibbs.html
+
+
+
+
+
+
+
+
+
+
+
+
+
