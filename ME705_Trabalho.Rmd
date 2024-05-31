@@ -1,0 +1,305 @@
+---
+title: "ME705_TRABALHO"
+output: pdf_document
+date: "2024-05-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+fuel <-read_csv("https://open.canada.ca/data/dataset/98f1a129-f628-4ce4-b24d-6f16bf24dd64/resource/edba4afa-dc19-480c-bbe4-57992fc9d0d6/download/my2024-fuel-consumption-ratings.csv")
+```
+
+```{r}
+ifelse(fuel$Transmission %in% c("AV", "AV1" , "AV10" ,"AV6" , "AV7" ,"AV8"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("A10",  "A6",   "A8",   "A9", "AM6" , "AM7",  "AM8"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("AS10", "AS5" , "AS6" , "AS7" , "AS8" , "AS9"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("M5",   "M6",   "M7"), "M", fuel$Transmission) -> fuel$Transmission
+
+fuel[,-c(1, 2, 3, 4, 5, 9, 10, 12, 14, 15)] -> fuel1
+```
+
+```{r}
+hist(x = fuel1$`Combined (L/100 km)`)
+qqnorm(fuel1$`Combined (L/100 km)`)
+```
+
+```{r}
+require(lrgs)
+require(fastDummies)
+require(tidyverse)
+```
+
+```{r}
+set.seed(12345)
+dummy_cols(fuel1[,-c(4)], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X
+X <- as.matrix(X)
+y <- as.matrix(fuel1[,4])
+
+#cadeia 1
+
+fit.post.chain1 <- Gibbs.regression(X, y, NULL, Nsamples = 1000, trace='bsmt', fix='xy',intercept = T, dirichlet = F) ##GIBBS
+
+#cadeia 2
+  
+fit.post.chain2 <- Gibbs.regression(X, y, NULL, Nsamples = 1000, trace='bsmt', fix='xy') ##GIBBS
+
+fit.lm <- lm(y ~ X) ## MV
+summary(fit.lm) #fit.lm
+```
+
+```{r}
+par(mfrow = c(2,2))
+hist(fit.post.chain1$B[1,1,1:1000])
+hist(fit.post.chain1$B[2,1,1:1000])
+hist(fit.post.chain1$B[3,1,1:1000])
+hist(fit.post.chain1$B[4,1,1:1000])
+hist(fit.post.chain1$B[5,1,1:1000])
+hist(fit.post.chain1$B[6,1,1:1000])
+hist(fit.post.chain1$B[7,1,1:1000])
+```
+
+GIBBS MANUAL 
+
+```{r gibbs sampling}
+library(coda)
+library(MASS)
+
+gibbs <- function (M, y, X, beta_0, tau){
+
+betas <- matrix(0, nrow = M, ncol = length(beta_0))
+sigmas <- rep(0,M)
+
+mu_valores <- mu_N <- beta_0
+sigma <- 1/tau
+sigmas[1] = sigma
+
+XtX = t(X) %*% X
+beta_hat = solve(XtX, t(X) %*% y)
+XtXi = solve(XtX)
+
+for (i in 2:M){
+  
+  betas[i,] <- beta <- mvrnorm(n=1, beta_hat, sigmas[i-1] * XtXi)
+  
+  part = (y - X %*% beta)
+  
+  sigmas[i] = rinvgamma(1, nrow(y)/2, t(part) %*% part * .5 )
+}
+return(as.data.frame(cbind(betas,sigmas)))
+}
+
+M <- 10000
+y <- as.matrix(fuel1[,4])
+dummy_cols(fuel1[,-4], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X
+X <- as.matrix(X)
+X <- cbind(rep(1,763),X)
+beta_0 <- rep(0, ncol(X))
+tau_0 <- diag(10, ncol(X))
+tau <- as.numeric(1/100)
+
+thetas <- gibbs(M, y, X, beta_0,tau)
+```
+
+```{r histogramas sem burn-in sem lag}
+hist(thetas[1:10000, 1])
+hist(thetas[1:10000, 2])
+hist(thetas[1:10000, 3])
+hist(thetas[1:10000, 4])
+hist(thetas[1:10000, 5])
+hist(thetas[1:10000, 6])
+hist(thetas[1:10000, 7])
+```
+
+```{r histogramas com burn-in sem lag}
+hist(thetas[5000:10000, 1])
+hist(thetas[5000:10000, 2])
+hist(thetas[5000:10000, 3])
+hist(thetas[5000:10000, 4])
+hist(thetas[5000:10000, 5])
+hist(thetas[5000:10000, 6])
+hist(thetas[5000:10000, 7])
+```
+
+```{r histogramas com burn-in com lag}
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 1])
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 2])
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 3])
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 4])
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 5])
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 6])
+hist(thetas[seq(from = 5000, to = 10000, by = 100), 7])
+```
+
+```{r lineplots sem burnin sem lag}
+plot(type = "l",thetas[1:10000, 1])
+abline(a = fit.lm$coefficients[1], b = 0,col = "red")
+abline(a = fit.lm$coefficients[1]+1.96*sqrt(diag(vcov(fit.lm)))[1], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[1]-1.96*sqrt(diag(vcov(fit.lm)))[1], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 2])
+abline(a = fit.lm$coefficients[2], b = 0,col = "red")
+abline(a = fit.lm$coefficients[2]+1.96*sqrt(diag(vcov(fit.lm)))[2], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[2]-1.96*sqrt(diag(vcov(fit.lm)))[2], b = 0,col = "blue" )
+plot(type = "l",thetas[1:1000, 3])
+abline(a = fit.lm$coefficients[3], b = 0,col = "red")
+abline(a = fit.lm$coefficients[3]+1.96*sqrt(diag(vcov(fit.lm)))[3], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[3]-1.96*sqrt(diag(vcov(fit.lm)))[3], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 4])
+abline(a = fit.lm$coefficients[4], b = 0,col = "red")
+abline(a = fit.lm$coefficients[4]+1.96*sqrt(diag(vcov(fit.lm)))[4], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[4]-1.96*sqrt(diag(vcov(fit.lm)))[4], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 5])
+abline(a = fit.lm$coefficients[5], b = 0,col = "red")
+abline(a = fit.lm$coefficients[5]+1.96*sqrt(diag(vcov(fit.lm)))[5], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[5]-1.96*sqrt(diag(vcov(fit.lm)))[5], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 6])
+abline(a = fit.lm$coefficients[6], b = 0,col = "red")
+abline(a = fit.lm$coefficients[6]+1.96*sqrt(diag(vcov(fit.lm)))[6], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[6]-1.96*sqrt(diag(vcov(fit.lm)))[6], b = 0,col = "blue" )
+plot(type = "l",thetas[1:10000, 7])
+abline(a = fit.lm$coefficients[7], b = 0,col = "red")
+abline(a = fit.lm$coefficients[7]+1.96*sqrt(diag(vcov(fit.lm)))[7], b = 0,col = "blue" )
+abline(a = fit.lm$coefficients[7]-1.96*sqrt(diag(vcov(fit.lm)))[7], b = 0,col = "blue" )
+```
+
+```{rlineplots com burn-in sem lag}
+plot(type="l",thetas[5000:10000, 1])
+plot(type="l",thetas[5000:10000, 2])
+plot(type="l",thetas[5000:10000, 3])
+plot(type="l",thetas[5000:10000, 4])
+plot(type="l",thetas[5000:10000, 5])
+plot(type="l",thetas[5000:10000, 6])
+plot(type="l",thetas[5000:10000, 7])
+```
+
+```{r lineplot com burn-in com lag}
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 1])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 2])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 3])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 4])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 5])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 6])
+plot(type = "l",thetas[seq(from = 5000, to = 10000,by = 100), 7])
+```
+
+```{r}
+apply(thetas[seq(from= 5000,to = 10000,by = 100),], 2, FUN=mean)
+fit.lm$coefficients
+apply(thetas[seq(from= 5000,to = 10000,by = 1),], 2, FUN=var)
+diag(vcov(fit.lm))
+```
+
+
+https://www.ljwolf.org/teaching/gibbs.html
+
+```{r}
+## R for theta1
+W.1 <- (var(thetas[(M/2+1):M,1])+var(thetas[(M/2+1):M,3]))/2
+mu.mean <- mean(theta1.mean)
+B.1 <- (n/(m-1))*mean((theta1.mean-mu.mean)^2)
+V.1 <- ((n-1)/n)*W.1+B.1/n
+R.1 <- sqrt(V.1/W.1)
+R.1
+
+## R for theta2
+W.2 <- (var(thetas[(M/2+1):M,2])+var(thetas[(M/2+1):M,4]))/2
+mu.mean <- mean(theta2.mean)
+B.2 <- (n/(m-1))*mean((theta2.mean-mu.mean)^2)
+V.2 <- ((n-1)/n)*W.2+B.2/n
+R.2 <- sqrt(V.2/W.2)
+R.2
+
+gelman.diag(list(mcmc(thetas[(M/2+1):M,1]),mcmc(thetas[(M/2+1):M,3])), confidence = 0.95)
+gelman.diag(list(mcmc(thetas[(M/2+1):M,2]),mcmc(thetas[(M/2+1):M,4])), confidence = 0.95)
+
+## cadeias com burn-in = M/2
+par(mfrow=c(2,2))
+## cadeias theta.1
+plot(c(1:100),thetas[1:100,1],type="l",xlab="iterações",ylab="theta 1",ylim=c(-8,8))
+lines(c(1:100),thetas[1:100,3],col=2)
+abline(h=2)
+plot((M/2+1:M),thetas[,1],type="l",xlab="iterações",ylab="theta 1")
+lines((M/2+1:M),thetas[,3],col=2)
+abline(h=2)
+
+## cadeias theta.2
+plot(c(1:100),thetas[1:100,2],type="l",xlab="iterações",ylab="theta 1",ylim=c(-8,8))
+lines(c(1:100),thetas[1:100,4],col=2)
+abline(h=3)
+plot((M/2+1:M),thetas[,2],type="l",xlab="iterações",ylab="theta 2")
+lines((M/2+1:M),thetas[,4],col=2)
+abline(h=3)
+```
+
+```{r}
+# gerando cadeias 
+thetas.c1 <- gibbs(M, y, X, beta_0,tau)
+beta_0 <- rep(0, ncol(X))
+tau = 1/100
+thetas.c2 <- gibbs(M, y, X, beta_0,tau)
+beta_0 <- rep(2, ncol(X))
+tau = 1/50
+thetas.c3 <- gibbs(M, y, X, beta_0,tau)
+beta_0 <- rep(3, ncol(X))
+tau = 1/150
+cadeias = data.frame(c(thetas.c1, thetas.c2, thetas.c3))
+```
+
+
+```{r}
+# Calculo estatistica r chapeu
+n = 5000 # tamanho da cadeia com burn-in
+m = 3
+rs = c()
+for (i in 1:ncol(thetas.c1)){
+thetaimediageral = mean(c(cadeias[5001:10000, i], cadeias[5001:10000, i+ncol(thetas.c1)], cadeias[5001:10000,i+(2*ncol(thetas.c1))]))
+B = (n/(m-1))*((cadeias[5001:10000, i] %>% mean() -thetaimediageral)^2 + (cadeias[5001:10000, i+ncol(thetas.c1)] %>% mean()-thetaimediageral)^2 + (cadeias[5001:10000, i+ncol(thetas.c1)*2] %>% mean() -thetaimediageral)^2)
+W = (var(cadeias[5001:10000, i]) + var(cadeias[5001:10000, i+ncol(thetas.c1)]) + var(cadeias[5001:10000, i+ncol(thetas.c1)*2]))*(1/m)
+V = ((n-1)/n)*W + (1/n)*B
+r = sqrt(V/W)
+rs[i] = r
+}
+tabela = data.frame(rs, c("β1", "β2", "β3", "β4", "β5", "β6", "β7", 'σ'))
+
+library(kableExtra)
+
+kbl(tabela, booktabs = TRUE, caption = 'Tabela 1: R chapéu de cada parâmetro', align = 'l', format = 'latex') %>%
+    kable_styling(latex_options = c('hold_position', 'scale_down'))
+```
+
+```{r Histogramas com burn-in e HDIS}
+library(HDInterval)
+HDIs <- matrix(0,ncol = 2,nrow = ncol(thetas))
+for(i in 1:ncol(thetas)){
+  HDIs[i,] <- as.vector(HDInterval::hdi(thetas[,i], allowSplit = TRUE))
+}
+
+hist(thetas[5000:10000, 1])
+abline(v = HDIs[1,1],col = "red")
+abline(v = HDIs[1,2],col = "red")
+hist(thetas[5000:10000, 2])
+abline(v = HDIs[2,1],col = "red")
+abline(v = HDIs[2,2],col = "red")
+hist(thetas[5000:10000, 3])
+abline(v = HDIs[3,1],col = "red")
+abline(v = HDIs[3,2],col = "red")
+hist(thetas[5000:10000, 4])
+abline(v = HDIs[4,1],col = "red")
+abline(v = HDIs[4,2],col = "red")
+hist(thetas[5000:10000, 5])
+abline(v = HDIs[5,1],col = "red")
+abline(v = HDIs[5,2],col = "red")
+hist(thetas[5000:10000, 6])
+abline(v = HDIs[6,1],col = "red")
+abline(v = HDIs[6,2],col = "red")
+hist(thetas[5000:10000, 7])
+abline(v = HDIs[7,1],col = "red")
+abline(v = HDIs[7,2],col = "red")
+hist(thetas[5000:10000, 8])
+abline(v = HDIs[8,1],col = "red")
+abline(v = HDIs[8,2],col = "red")
+```
+
