@@ -23,8 +23,9 @@ fuel[,-c(1, 2, 3, 4, 5, 9, 10, 12, 14, 15)] -> fuel1
 ```
 
 ```{r}
-hist(x = fuel1$`Combined (L/100 km)`)
-qqnorm(fuel1$`Combined (L/100 km)`)
+hist(x = fuel1$`Combined (L/100 km)`, main = 'Histograma de Consumo de Combustível (L/100km)', ylab = 'Frequência', xlab = 'Consumo de Combustível (L/100km)')
+qqnorm(fuel1$`Combined (L/100 km)`, main = 'Gráfico Q-Q de Consumo de Combustível (L/100km)', ylab = 'Quantis Amostrais', xlab = 'Quantis Teóricos')
+qqline(fuel1$`Combined (L/100 km)`)
 ```
 
 ```{r}
