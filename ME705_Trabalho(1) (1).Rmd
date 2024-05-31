@@ -67,11 +67,11 @@ GIBBS MANUAL
 ```{r gibbs sampling}
 library(coda)
 library(MASS)
-library(MCMCpack)
 
 gibbs <- function (M, y, X, beta_0, tau){
 
-sigmas <- betas <- matrix(0, nrow = M, ncol = length(beta_0))
+betas <- matrix(0, nrow = M, ncol = length(beta_0))
+sigmas <- rep(0,M)
 
 mu_valores <- mu_N <- beta_0
 sigma <- 1/tau
@@ -86,16 +86,16 @@ for (i in 2:M){
   
   part = (y - X %*% beta)
   
-  sigma = rinvgamma(1, nrow(y)/2, t(part) %*% part * .5 )
+  sigmas[i] = rinvgamma(1, nrow(y)/2, t(part) %*% part * .5 )
 }
-return(as.data.frame(betas))
+return(as.data.frame(betas,sigmas))
 }
 
 M <- 10000
 y <- as.matrix(fuel1[,4])
 dummy_cols(fuel1[,-4], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X
 X <- as.matrix(X)
-X <- cbind(rep(1,748),X)
+X <- cbind(rep(1,763),X)
 beta_0 <- rep(0, ncol(X))
 tau_0 <- diag(10, ncol(X))
 tau <- as.numeric(1/var(y))
