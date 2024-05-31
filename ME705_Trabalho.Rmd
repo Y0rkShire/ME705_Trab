@@ -165,7 +165,7 @@ abline(a = fit.lm$coefficients[7]+1.96*sqrt(diag(vcov(fit.lm)))[7], b = 0,col = 
 abline(a = fit.lm$coefficients[7]-1.96*sqrt(diag(vcov(fit.lm)))[7], b = 0,col = "blue" )
 ```
 
-```{rlineplots com burn-in sem lag}
+```{r lineplots com burn-in sem lag}
 plot(type="l",thetas[5000:10000, 1])
 plot(type="l",thetas[5000:10000, 2])
 plot(type="l",thetas[5000:10000, 3])
