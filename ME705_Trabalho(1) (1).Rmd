@@ -88,7 +88,7 @@ for (i in 2:M){
   
   sigmas[i] = rinvgamma(1, nrow(y)/2, t(part) %*% part * .5 )
 }
-return(as.data.frame(betas,sigmas))
+return(as.data.frame(cbind(betas,sigmas)))
 }
 
 M <- 10000
