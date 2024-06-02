@@ -276,6 +276,31 @@ R2[j] <- SQR/SQT
 R2_médio <- mean(R2)
 ```
 
+```{r}
+x <- c()
+y_valores = c()
+x_coord = c()
+y_coord = c()
+beta = c('β0',"β1", "β2", "β3", "β4", "β5", "β6", 'σ²')
+for (i in 1:ncol(thethas_B_l)){
+lower = HDIs[i,1]
+upper = HDIs[i,2]
+x <- density(thethas_B_l[,i])$x
+y_valores = density(thethas_B_l[,i])$y
+x_coord <- c(lower, x[x >= lower & x <= upper], upper)
+y_coord <- c(0, y_valores[x >= lower & x <= upper], 0)
+par(bg = NA)
+plot(density(thethas_B_l[,i]), main = '', ylab = 'Densidade', xlab = paste('Valores de', beta[i]), lwd = 3)
+par(bg = NA)
+polygon(x_coord, y_coord, col = '#151C55', lwd = 3,  border = '#151C55')
+
+dev.copy(png, paste0('hist', i, '.png'))
+dev.off()
+}
+
+
+
+```
 
 
 
