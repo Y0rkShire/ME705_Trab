@@ -15,21 +15,6 @@ fuel <-read_csv("https://open.canada.ca/data/dataset/98f1a129-f628-4ce4-b24d-6f1
 ```
 
 ```{r}
-ifelse(fuel$Transmission %in% c("AV", "AV1" , "AV10" ,"AV6" , "AV7" ,"AV8"), "A", fuel$Transmission) -> fuel$Transmission
-ifelse(fuel$Transmission %in% c("A10",  "A6",   "A8",   "A9", "AM6" , "AM7",  "AM8"), "A", fuel$Transmission) -> fuel$Transmission
-ifelse(fuel$Transmission %in% c("AS10", "AS5" , "AS6" , "AS7" , "AS8" , "AS9"), "A", fuel$Transmission) -> fuel$Transmission
-ifelse(fuel$Transmission %in% c("M5",   "M6",   "M7"), "M", fuel$Transmission) -> fuel$Transmission
-
-fuel[,-c(1, 2, 3, 4, 5, 9, 10, 12, 14, 15)] -> fuel1
-```
-
-```{r}
-hist(x = fuel1$`Combined (L/100 km)`, main = '', ylab = 'Frequência', xlab = 'Consumo de Combustível (L/100km)', col = '#151C55')
-qqnorm(fuel1$`Combined (L/100 km)`, main = 'Gráfico Q-Q de Consumo de Combustível (L/100km)', ylab = 'Quantis Amostrais', xlab = 'Quantis Teóricos')
-qqline(fuel1$`Combined (L/100 km)`)
-```
-
-```{r}
 library(HDInterval)
 library(kableExtra)
 library(lrgs)
@@ -38,7 +23,27 @@ library(tidyverse)
 library(coda)
 library(MASS)
 library(MCMCpack)
+library(GGally)
 ```
+
+```{r}
+ifelse(fuel$Transmission %in% c("AV", "AV1" , "AV10" ,"AV6" , "AV7" ,"AV8"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("A10",  "A6",   "A8",   "A9", "AM6" , "AM7",  "AM8"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("AS10", "AS5" , "AS6" , "AS7" , "AS8" , "AS9"), "A", fuel$Transmission) -> fuel$Transmission
+ifelse(fuel$Transmission %in% c("M5",   "M6",   "M7"), "M", fuel$Transmission) -> fuel$Transmission
+
+fuel[,-c(1, 2, 3, 4, 9, 10, 12, 14, 15)] -> fuel1
+
+ggpairs(fuel1[,c(1, 2,6, 5)])
+```
+
+```{r}
+hist(x = fuel1$`Combined (L/100 km)`, main = '', ylab = 'Frequência', xlab = 'Consumo de Combustível (L/100km)', col = '#151C55')
+qqnorm(fuel1$`Combined (L/100 km)`, main = 'Gráfico Q-Q de Consumo de Combustível (L/100km)', ylab = 'Quantis Amostrais', xlab = 'Quantis Teóricos')
+qqline(fuel1$`Combined (L/100 km)`)
+```
+
+
 
 ```{r}
 # set.seed(12345)
@@ -93,8 +98,8 @@ return(as.data.frame(cbind(betas,sigmas)))
 }
 
 M <- 10000
-y <- as.matrix(fuel1[,4])
-dummy_cols(fuel1[,-4], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X 
+y <- as.matrix(fuel1[,5])
+dummy_cols(fuel1[,-c(1,5)], select_columns = c("Transmission", "Fuel type"), remove_selected_columns = TRUE, remove_first_dummy = TRUE) -> X 
 X <- as.matrix(X)
 X <- cbind(rep(1,nrow(X)),X)
 
@@ -223,8 +228,6 @@ V = ((n-1)/n)*W + (1/n)*B
 r = sqrt(V/W)
 rs[i] = r
 }
-tabela = data.frame(c("β1", "β2", "β3", "β4", "β5", "β6", "β7", 'σ'), rs,)
-tabela
 ```
 
 ```{r Histogramas com burn-in e HDIS}
@@ -298,12 +301,5 @@ dev.copy(png, paste0('hist', i, '.png'))
 dev.off()
 }
 
-
-
 ```
-
-
-
-
-
 
