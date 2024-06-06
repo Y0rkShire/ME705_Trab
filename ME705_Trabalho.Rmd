@@ -34,7 +34,16 @@ ifelse(fuel$Transmission %in% c("M5",   "M6",   "M7"), "M", fuel$Transmission) -
 
 fuel[,-c(1, 2, 3, 4, 9, 10, 12, 14, 15)] -> fuel1
 
-ggpairs(fuel1[,c(1, 2,6, 5)])
+p = ggpairs(fuel1[,c(1, 2,6, 5)], upper = list(continuous = GGally::wrap(ggally_cor, stars = F)))+
+  theme(
+    panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') #transparent legend panel
+  )
+ggsave('myplot.png', p, bg='transparent')
 ```
 
 ```{r}
