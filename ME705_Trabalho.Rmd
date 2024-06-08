@@ -1,4 +1,3 @@
-
 ---
 title: "ME705_TRABALHO"
 output: pdf_document
@@ -12,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(readr)
 fuel <-read_csv("https://open.canada.ca/data/dataset/98f1a129-f628-4ce4-b24d-6f16bf24dd64/resource/edba4afa-dc19-480c-bbe4-57992fc9d0d6/download/my2024-fuel-consumption-ratings.csv")
+fuel_2023
 ```
 
 ```{r}
@@ -51,7 +51,6 @@ hist(x = fuel1$`Combined (L/100 km)`, main = '', ylab = 'Frequência', xlab = 'C
 qqnorm(fuel1$`Combined (L/100 km)`, main = 'Gráfico Q-Q de Consumo de Combustível (L/100km)', ylab = 'Quantis Amostrais', xlab = 'Quantis Teóricos')
 qqline(fuel1$`Combined (L/100 km)`)
 ```
-
 
 
 ```{r}
@@ -244,31 +243,6 @@ HDIs <- matrix(0,ncol = 2,nrow = ncol(thethas_B_l))
 for(i in 1:ncol(thethas_B_l)){
   HDIs[i,] <- as.vector(HDInterval::hdi(thethas_B_l[,i], allowSplit = TRUE))
 }
-
-hist(thethas_B_l[, 1])
-abline(v = HDIs[1,1],col = "red")
-abline(v = HDIs[1,2],col = "red")
-hist(thethas_B_l[, 2])
-abline(v = HDIs[2,1],col = "red")
-abline(v = HDIs[2,2],col = "red")
-hist(thethas_B_l[, 3])
-abline(v = HDIs[3,1],col = "red")
-abline(v = HDIs[3,2],col = "red")
-hist(thethas_B_l[, 4])
-abline(v = HDIs[4,1],col = "red")
-abline(v = HDIs[4,2],col = "red")
-hist(thethas_B_l[, 5])
-abline(v = HDIs[5,1],col = "red")
-abline(v = HDIs[5,2],col = "red")
-hist(thethas_B_l[, 6])
-abline(v = HDIs[6,1],col = "red")
-abline(v = HDIs[6,2],col = "red")
-hist(thethas_B_l[, 7])
-abline(v = HDIs[7,1],col = "red")
-abline(v = HDIs[7,2],col = "red")
-hist(thethas_B_l[, 8])
-abline(v = HDIs[8,1],col = "red")
-abline(v = HDIs[8,2],col = "red")
 ```
 
 ```{r}
@@ -286,6 +260,24 @@ R2[j] <- SQR/SQT
 }
 
 R2_médio <- mean(R2)
+```
+
+```{r}
+mean_betas <- as.matrix(apply(thetas[,-8], 2, mean))
+
+y_fitted <- X %*% mean_betas
+
+SQR <- sum((y_fitted - mean(y))^2)
+SQT <- sum((y - mean(y))^2)
+R2 <- SQR/SQT
+```
+
+```{r}
+residual <-  y - y_fitted
+plot(residual)
+hist(residual)
+qqnorm(residual)
+qqline(residual)
 ```
 
 ```{r}
@@ -309,6 +301,4 @@ polygon(x_coord, y_coord, col = '#151C55', lwd = 3,  border = '#151C55')
 dev.copy(png, paste0('hist', i, '.png'))
 dev.off()
 }
-
 ```
-
